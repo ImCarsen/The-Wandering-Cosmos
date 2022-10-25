@@ -172,10 +172,13 @@ async def removeUser(reddit, user):
     print(f"{bcolors.WARNING}- User {bcolors.OKCYAN}{user} {bcolors.WARNING}was removed successfully. There are now {bcolors.OKCYAN}{str(num)} {bcolors.WARNING}users.{bcolors.ENDC}")
 
     #Removes the user as a contributor from the sub
-    subAwait = await reddit.subreddit(subN)
-    await subAwait.contributor.remove(user)
+    try:
+        subAwait = await reddit.subreddit(subN)
+        await subAwait.contributor.remove(user)
+        await reddit.close()
+    except:
+        print(f"Error removing {user}, their account may no longer exist")
 
-    await reddit.close()
 
     #Get the user's number
     sqlA = """SELECT number FROM USER where name='{}'""".format(user)
@@ -394,7 +397,7 @@ async def MainLoop():
     #Check if the day is Sunday or Monday
     if day == "Tuesday":
         #If Sunday, check the time
-        if hour == "02":
+        if hour == "03":
             #Make sure the great erasure is called only once
             if erasureCalled == False:
                 erasureCalled = True
