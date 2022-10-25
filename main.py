@@ -33,6 +33,7 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+erasureCalled = False
 
 print(f"{bcolors.OKGREEN}Initilizing {bcolors.OKCYAN}{bcolors.BOLD}The Wandering Cosmos {bcolors.ENDC}{bcolors.OKGREEN}bot...{bcolors.ENDC}")
 
@@ -85,26 +86,32 @@ async def updateFlair(reddit, unum):
         if uNumber <= 25:
             subAwait = await reddit.subreddit(subN)
             await subAwait.flair.set(uName, text="Cosmos Drifter"+" #"+str(uNumber))
+            await reddit.close()
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{uName} {bcolors.OKGREEN}was given the flair {bcolors.OKCYAN}Cosmos Drifter #{uNumber}{bcolors.ENDC}")
         elif 25 < uNumber <= 125:
             subAwait = await reddit.subreddit(subN)
             await subAwait.flair.set(uName, text="Sentinel"+" #"+str(uNumber-25))
+            await reddit.close()
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{uName} {bcolors.OKGREEN}was given the flair {bcolors.OKCYAN}Sentinel #{uNumber}{bcolors.ENDC}")
         elif 125 < uNumber <= 375:
             subAwait = await reddit.subreddit(subN)
             await subAwait.flair.set(uName, text="Nomad"+" #"+str(uNumber-125))
+            await reddit.close()
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{uName} {bcolors.OKGREEN}was given the flair {bcolors.OKCYAN}Nomad #{uNumber}{bcolors.ENDC}")
         elif 375 < uNumber <= 875:
             subAwait = await reddit.subreddit(subN)
             await subAwait.flair.set(uName, text="Keeper"+" #"+str(uNumber-375))
+            await reddit.close()
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{uName} {bcolors.OKGREEN}was given the flair {bcolors.OKCYAN}Keeper #{uNumber}{bcolors.ENDC}")
         elif uNumber > 875:
             subAwait = await reddit.subreddit(subN)
             await subAwait.flair.set(uName, text="Wanderer"+" #"+str(uNumber-875))
+            await reddit.close()
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{uName} {bcolors.OKGREEN}was given the flair {bcolors.OKCYAN}Wanderer #{uNumber}{bcolors.ENDC}")
         else:
             subAwait = await reddit.subreddit(subN)
             await subAwait.flair.set(uName, text="Bot Brokey?"+" #"+str(uNumber))
+            await reddit.close()
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{uName} {bcolors.OKGREEN}was given the flair {bcolors.OKCYAN}Bot Brokey? #{uNumber}{bcolors.ENDC}")
     else:
         #If they are on the ignore list, ignore them and print the outcome
@@ -168,6 +175,8 @@ async def removeUser(reddit, user):
     subAwait = await reddit.subreddit(subN)
     await subAwait.contributor.remove(user)
 
+    await reddit.close()
+
     #Get the user's number
     sqlA = """SELECT number FROM USER where name='{}'""".format(user)
     cursor = con.cursor()
@@ -185,20 +194,24 @@ async def removeUser(reddit, user):
     #Update the SQLite database with the new number information
     if uNumber+1 < int(stats['STATS']['Users']):
         for u in range (uNumber, 1, -1):
-            sqlC = """SELECT * FROM USER where number='{}'""".format(u+1)
-            cursor = con.cursor()
-            Data = cursor.execute(sqlC).fetchone()
-            print(Data)
-            cursor.close()
+            try:
+                sqlC = """SELECT * FROM USER where number='{}'""".format(u+1)
+                cursor = con.cursor()
+                Data = cursor.execute(sqlC).fetchone()
+                print(Data)
+                cursor.close()
 
-            updateSQL = """UPDATE USER SET number='{}' where name='{}'""".format(u,str(Data[1]))
-            cursor = con.cursor()
-            cursor.execute(updateSQL)
-            con.commit()
-            cursor.close()
+                if str(Data[1]) != "None":
+                    updateSQL = """UPDATE USER SET number='{}' where name='{}'""".format(u,str(Data[1]))
+                    cursor = con.cursor()
+                    cursor.execute(updateSQL)
+                    con.commit()
+                    cursor.close()
 
-        #Update the flair's of everyone who has a number lower than the user
-        await updateFlair(redditConnect(), u)
+                #Update the flair's of everyone who has a number lower than the user
+                await updateFlair((redditConnect()), u)
+            except:
+                print("Error")
     return
 
 #Finds users and runs rng on them to see if they should be invited
@@ -222,28 +235,66 @@ async def findUser(reddit):
                         #If it is not, rng check for if they should be invited
                         if(randint(1,commentrng) == luckynumber):
                             author = comment.author
-                            await inviteUser(reddit, str(author))
+                            await inviteUser(redditConnect(), str(author))
                 #rng check if they should be invited
                 if(randint(1,postrng) == luckynumber):
                     author = submission.author
-                    await inviteUser(reddit, str(author))
+                    await inviteUser(redditConnect(), str(author))
     print(f"{bcolors.OKCYAN}- Done pulling users{bcolors.ENDC}")
+    await reddit.close()
 
 #Checks if given user has been active within the week returns true or false based on activity
 async def checkIfUserActive(reddit, user):
+    i = 0
+    x = 0
+    time = datetime.datetime.now().timestamp()
     #Set the sub to TheWanderingCosmos
     subreddit = await reddit.subreddit(subN)
     #Search the sub for posts from the user within the last week
-    search = await subreddit.search(f'author:"{user}"',time_filter='week')
-    #If they are active return true, otherwise return false (returns "None", but it still works)
-    if post := next(search, None):
-        if post == None:
-            search2 = await subreddit.search(f'author:"{user}"',sort='comments',time_filter='week')
-            if comment := next(search2, None):
-                if comment == None:
-                    return False
-        else:
-            return True
+    try:
+        async for post in subreddit.search(f'author:"{user}"',time_filter='week'):
+            #If found count the posts
+            i = i+1
+            break
+    except:
+        print("Error")
+        #There may have been an error finding the user, their posts, or comments. Assume they were inactive. Closes the reddit session and returns False
+        await reddit.close()
+        return False
+    #Check the amount of posts
+    if i <= 0:
+        #If there are none, check for comments
+        redditor = await reddit.redditor(user)
+        try:
+            #Fetch the comments from the user
+            async for comment in redditor.comments.new(limit=300):
+                #Check the subreddit they were from
+                if comment.subreddit == subN:
+                    #If they are from the currect sub, check the time they were posted and compare it to the current time
+                    dif = (float(time)-float(comment.created_utc))/(60*60*24)
+                    #If the time posted is within the week, count the comment
+                    if dif < 8:
+                        x = x+1
+                        break
+                #await asyncio.sleep(.05)
+            #Check the comment amount
+            if x <= 0:
+                #If 0, the user is inactive. Closes the reddit session and returns False
+                await reddit.close()
+                return False
+            else:
+                #If there are more than 0, the user is active. Closes the reddit session and returns True
+                await reddit.close()
+                return True
+        except:
+            print("Error")
+            #There may have been an error finding the user, their posts, or comments. Assume they were inactive. Closes the reddit session and returns False
+            await reddit.close()
+            return False
+    else:
+        #If they have posted on the sub, they were active. Closes the reddit session and returns True
+        await reddit.close()
+        return True
 
 #The Great Erasure removes everyone who was not active in the last week
 async def greatErasure(reddit):
@@ -256,7 +307,7 @@ async def greatErasure(reddit):
     cursor.close()
     #Check for activity
     for i in Data:
-        if await checkIfUserActive(reddit, i[1]) != True:
+        if await checkIfUserActive(redditConnect(), i[1]) != True:
             #Add the user to the inactive list
             inactive.append(i[1])
             print(f"{bcolors.WARNING}User {bcolors.OKCYAN}{i[1]} {bcolors.WARNING}was inactive.{bcolors.ENDC}")
@@ -290,7 +341,7 @@ async def greatErasure(reddit):
         check = any(i in x for i in stats['IGNORE']['userlist'].splitlines())
 
         if check == False:
-            await removeUser(reddit, x)
+            await removeUser(redditConnect(), x)
             print(f"{bcolors.WARNING}- User {bcolors.OKCYAN}{x} {bcolors.WARNING}was removed for inactivity.{bcolors.ENDC}")
         else:
             print(f"{bcolors.OKGREEN}- User {bcolors.OKCYAN}{x} {bcolors.OKGREEN}was not removed for inactivity as they are on the ignore list{bcolors.ENDC}")
@@ -311,7 +362,8 @@ async def greatErasure(reddit):
     body = f"**The following user(s) have been removed for inactivity**: \n\n {formatlist} \n\nThere are now {total} approved users remaining."
     #Submit the post to the subreddit
     subAwait = await reddit.subreddit(subN)
-    subAwait.submit(title, selftext=body, flair_id=flair)
+    await subAwait.submit(title, selftext=body, flair_id=flair)
+    await reddit.close()
     return
 
 async def asyncUserInvite(wait):
@@ -328,10 +380,10 @@ async def asyncCheckDateTime():
     cdtime = [str(unformatted.strftime("%A")), str(unformatted.strftime("%H"))]
     return cdtime
 
-erasureCalled = False
 
 #Main loop
 async def MainLoop():
+    erasureCalled = False
     #Define the current time and day, then print the time and day the function was called
     dtLog = datetime.datetime.now()
     print(f"{bcolors.OKBLUE}- Main function called at {bcolors.OKCYAN}{str(dtLog)}{bcolors.ENDC}")
@@ -339,11 +391,10 @@ async def MainLoop():
     dayhour = await asyncCheckDateTime()
     day = dayhour[0]
     hour = dayhour[1]
-    print(hour)
     #Check if the day is Sunday or Monday
-    if day == "Sunday":
+    if day == "Tuesday":
         #If Sunday, check the time
-        if hour == "23":
+        if hour == "02":
             #Make sure the great erasure is called only once
             if erasureCalled == False:
                 erasureCalled = True
@@ -351,11 +402,11 @@ async def MainLoop():
                 print(f"{bcolors.WARNING}The Great Erasure has started!{bcolors.ENDC}")
                 await greatErasure(redditConnect())
                 print(f"{bcolors.OKGREEN}Inviting new users after The Great Erasure{bcolors.ENDC}")
-                await asyncUserInvite(60)
+                await asyncUserInvite(1)
             else:
                 print(f"{bcolors.OKGREEN}The Great Erasure has past. Inviting new users{bcolors.ENDC}")
                 await asyncUserInvite(1)
-    elif day == "Monday":
+    elif day == "Sunday":
         if hour == "00":
             erasureCalled = False
         #If the day is Monday, invite users
@@ -384,13 +435,16 @@ async def MainLoop():
 #findUser(redditConnect())
 
 #Release/Run Code
-if __name__ == '__main__':
-    scheduler = AsyncIOScheduler()
-    scheduler.add_job(MainLoop, 'interval', seconds=10)
-    scheduler.start()
+
+asyncio.run(MainLoop())
+
+#if __name__ == '__main__':
+#    scheduler = AsyncIOScheduler()
+#    scheduler.add_job(MainLoop, 'interval', seconds=900)
+#    scheduler.start()
 
     # Execution will block here until Ctrl+C (Ctrl+Break on Windows) is pressed.
-    try:
-        asyncio.get_event_loop().run_forever()
-    except (KeyboardInterrupt, SystemExit):
-        pass
+#    try:
+#        asyncio.get_event_loop().run_forever()
+#    except (KeyboardInterrupt, SystemExit):
+#        pass
