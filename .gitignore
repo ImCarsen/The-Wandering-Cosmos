@@ -1,0 +1,5 @@
+.vscode
+*.ini
+*.db
+*.md
+SQLite.py
