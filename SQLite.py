@@ -6,7 +6,6 @@ with con:
     con.execute("""
         CREATE TABLE USER (
             number INTEGER,
-            name TEXT,
-            active BOOLEAN
+            name TEXT
         );
     """)
