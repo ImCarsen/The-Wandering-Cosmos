@@ -1,5 +1,6 @@
 import configparser
 import datetime
+from os import stat
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import asyncio
 import asyncpraw as praw
@@ -160,6 +161,34 @@ async def inviteUser(reddit, user):
         print(f"{bcolors.WARNING}- User {bcolors.OKCYAN}{user} {bcolors.WARNING}has not been invited. REASON: {bcolors.OKCYAN}{user} {bcolors.WARNING}is already a member{bcolors.ENDC}")
     return
 
+async def updateSQL():
+    lastNum = 0
+    for i in range(1, int(stats['STATS']['users'])):
+        #Get the user with the number i
+        sqlC = """SELECT * FROM USER where number='{}'""".format(i)
+        cursor = con.cursor()
+        Data = cursor.execute(sqlC).fetchone()
+        #print(Data)
+        cursor.close()
+        #If they exist, set their number
+        if str(Data[1]) != "None":
+            if i == 1:
+                lastNum = 1
+            if i == int(Data[0]):
+                lastNum = int(Data[0])
+            else:
+                updateSQL = """UPDATE USER SET number='{}' where name='{}'""".format(lastNum+1,str(Data[1]))
+                cursor = con.cursor()
+                cursor.execute(updateSQL)
+                con.commit()
+                cursor.close()
+                lastNum = lastNum+1
+    #Update the SQLite database with the new number information
+
+            #Update the flair's of everyone who has a number lower than the user
+            await updateFlair((redditConnect()), 1)
+    return
+
 # Removes the user from the sub
 async def removeUser(reddit, user):
     #Remove a a number from the counter and update the ini
@@ -169,7 +198,7 @@ async def removeUser(reddit, user):
         stats.write(configfile)
 
     #Print that the user was removed
-    print(f"{bcolors.WARNING}- User {bcolors.OKCYAN}{user} {bcolors.WARNING}was removed successfully. There are now {bcolors.OKCYAN}{str(num)} {bcolors.WARNING}users.{bcolors.ENDC}")
+    print(f"{bcolors.WARNING}- User {bcolors.OKCYAN}{user} {bcolors.WARNING}is being removed. There will be {bcolors.OKCYAN}{str(num)} {bcolors.WARNING}users.{bcolors.ENDC}")
 
     #Removes the user as a contributor from the sub
     try:
@@ -178,6 +207,7 @@ async def removeUser(reddit, user):
         await reddit.close()
     except:
         print(f"Error removing {user}, their account may no longer exist")
+        await reddit.close()
 
 
     #Get the user's number
@@ -194,27 +224,7 @@ async def removeUser(reddit, user):
     con.commit()
     cursor.close()
 
-    #Update the SQLite database with the new number information
-    if uNumber+1 < int(stats['STATS']['Users']):
-        for u in range (uNumber, 1, -1):
-            try:
-                sqlC = """SELECT * FROM USER where number='{}'""".format(u+1)
-                cursor = con.cursor()
-                Data = cursor.execute(sqlC).fetchone()
-                print(Data)
-                cursor.close()
-
-                if str(Data[1]) != "None":
-                    updateSQL = """UPDATE USER SET number='{}' where name='{}'""".format(u,str(Data[1]))
-                    cursor = con.cursor()
-                    cursor.execute(updateSQL)
-                    con.commit()
-                    cursor.close()
-
-                #Update the flair's of everyone who has a number lower than the user
-                await updateFlair((redditConnect()), u)
-            except:
-                print("Error")
+    
     return
 
 #Finds users and runs rng on them to see if they should be invited
@@ -276,7 +286,7 @@ async def checkIfUserActive(reddit, user):
                     #If they are from the currect sub, check the time they were posted and compare it to the current time
                     dif = (float(time)-float(comment.created_utc))/(60*60*24)
                     #If the time posted is within the week, count the comment
-                    if dif < 8:
+                    if dif < 9:
                         x = x+1
                         break
                 #await asyncio.sleep(.05)
@@ -439,7 +449,12 @@ async def MainLoop():
 
 #Release/Run Code
 
-asyncio.run(MainLoop())
+#async def Test():
+#    for i in range(1,564):
+#        await updateFlair(redditConnect(), i)
+#    return
+
+asyncio.run(greatErasure(redditConnect()))
 
 #if __name__ == '__main__':
 #    scheduler = AsyncIOScheduler()
