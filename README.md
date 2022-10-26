@@ -1,6 +1,3 @@
-![Logo](https://dev-to-uploads.s3.amazonaws.com/uploads/articles/th5xamgrr6se0x5ro4g6.png)
-
-
 <h1 align="center">The r/TheWanderingCosmos Bot</h1>
 
 <p align="center">
@@ -37,4 +34,4 @@ Feel free to check [issues page](https://github.com/ImCarsen/The-Wandering-Cosmo
 - Site: [www.imcarsen.com](https://www.imcarsen.com/)
 - Twitter: [@ImCarsen_](https://twitter.com/ImCarsen_)
 - Twitch: [ImCarsen](https://www.twitch.tv/imcarsen)
-- Github: [@kefranabg](https://github.com/ImCarsen)
+- Github: [@ImCarsen](https://github.com/ImCarsen)
