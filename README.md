@@ -35,3 +35,6 @@ Feel free to check [issues page](https://github.com/ImCarsen/The-Wandering-Cosmo
 - Twitter: [@ImCarsen_](https://twitter.com/ImCarsen_)
 - Twitch: [ImCarsen](https://www.twitch.tv/imcarsen)
 - Github: [@ImCarsen](https://github.com/ImCarsen)
+
+
+I might do a rewrite and seperate all the functions of the bot into their own files.
